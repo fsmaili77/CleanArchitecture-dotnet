@@ -10,6 +10,11 @@ using FastEndpoints.Swagger.Swashbuckle;
 using FastEndpoints.ApiExplorer;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using Clean.Architecture.Web.Extensions;
+using Clean.Architecture.Infrastructure.Identity;
+using Microsoft.AspNetCore.Identity;
+using Clean.Architecture.Core.Entities.Identity;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,6 +31,7 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
 string? connectionString = builder.Configuration.GetConnectionString("SqliteConnection");  //Configuration.GetConnectionString("DefaultConnection");
 
 builder.Services.AddDbContext(connectionString!);
+builder.Services.AddIdentityServices(builder.Configuration);
 
 builder.Services.AddControllersWithViews().AddNewtonsoftJson();
 builder.Services.AddRazorPages();
@@ -75,6 +81,9 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseCookiePolicy();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 // Enable middleware to serve generated Swagger as a JSON endpoint.
 app.UseSwagger();
 
@@ -88,9 +97,13 @@ app.MapRazorPages();
 using (var scope = app.Services.CreateScope())
 {
   var services = scope.ServiceProvider;
+  var identityContext = services.GetRequiredService<AppIdentityDbContext>();
+  var userManager = services.GetRequiredService<UserManager<AppUser>>();
 
   try
   {
+    await identityContext.Database.MigrateAsync();
+    await AppIdentityDbContextSeed.SeedUserAsync(userManager);
     var context = services.GetRequiredService<AppDbContext>();
     //                    context.Database.Migrate();
     context.Database.EnsureCreated();
