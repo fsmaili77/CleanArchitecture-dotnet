@@ -15,12 +15,18 @@ using Clean.Architecture.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Clean.Architecture.Core.Entities.Identity;
 using Microsoft.EntityFrameworkCore;
+using Clean.Architecture.Web.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Logging.ClearProviders();
+// Add console logging
+builder.Logging.AddConsole();
 
 builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
 
 builder.Host.UseSerilog((_, config) => config.ReadFrom.Configuration(builder.Configuration));
+
+builder.Services.AddApplicationServices(builder.Configuration);
 
 builder.Services.Configure<CookiePolicyOptions>(options =>
 {
@@ -31,7 +37,10 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
 string? connectionString = builder.Configuration.GetConnectionString("SqliteConnection");  //Configuration.GetConnectionString("DefaultConnection");
 
 builder.Services.AddDbContext(connectionString!);
+
 builder.Services.AddIdentityServices(builder.Configuration);
+
+builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
 builder.Services.AddControllersWithViews().AddNewtonsoftJson();
 builder.Services.AddRazorPages();
@@ -74,6 +83,9 @@ else
   app.UseExceptionHandler("/Home/Error");
   app.UseHsts();
 }
+
+//app.UseMiddleware<CustomExceptionHandlerMiddleware>();
+
 app.UseRouting();
 app.UseFastEndpoints();
 
@@ -83,6 +95,8 @@ app.UseCookiePolicy();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+
 
 // Enable middleware to serve generated Swagger as a JSON endpoint.
 app.UseSwagger();
